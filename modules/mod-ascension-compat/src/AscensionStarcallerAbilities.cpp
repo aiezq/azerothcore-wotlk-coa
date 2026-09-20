@@ -204,13 +204,13 @@ class starcaller_spells : public AllSpellScript
             return;
         float factor = 1;
         if (info->Id == 804995 && player->HasAura(807659))
-            factor *= 1.5f;
+            factor *= 1.25f;
         if (info->Id == 801401 && player->HasAura(807659))
-            factor *= 1.5f;
+            factor *= 1.25f;
         if ((info->Id == 804995 || info->Id == 801401) && player->HasAura(805524))
-            factor *= 1.5f;
+            factor *= 1.25f;
         if (info->Id == 804995 && player->HasAura(574360))
-            factor *= 2;
+            factor *= 1.4f;
         if (hit.crit && info->Id == 804995 && player->HasAura(504694))
             factor *= 1.1f;
         if (hit.crit && player->HasAura(504003) && Any(info, {801990, 575030}))
