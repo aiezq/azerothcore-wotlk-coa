@@ -353,9 +353,9 @@ class witch_hunter_scaling : public UnitScript
         if (Noctis(info) && !index)
             value += player->GetUInt32Value(PLAYER_FIELD_COMBAT_RATING_1 + CR_PARRY);
         if (info->Id == 681099 && !index)
-            value += player->GetStat(STAT_STAMINA) * 2.0f;
+            value += player->GetStat(STAT_STAMINA) * 0.8f;
         if (info->Id == 802138 && index == 2)
-            value += player->GetStat(STAT_STAMINA) * 7.0f;
+            value += player->GetStat(STAT_STAMINA) * 1.5f;
     }
 };
 
