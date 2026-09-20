@@ -1910,6 +1910,74 @@ public:
     return picks;
   }
 
+  /// The client drops the buttons of the talent spells a specialization switch removes, so the spells
+  /// that leave the bar are remembered as (button, spell) pairs and put back when they return.
+  static constexpr char const* BAR_SETTING = "core.ascension_bar";
+
+  static std::vector<std::pair<uint8, uint32>> StoredBar(Player const* player)
+  {
+    std::vector<std::pair<uint8, uint32>> bar;
+    PlayerSettingVector const* values = player->FindPlayerSettings(BAR_SETTING);
+    if (!values || values->empty())
+      return bar;
+
+    std::size_t const count = std::min<std::size_t>((*values)[0].value, (values->size() - 1) / 2);
+    for (std::size_t index = 0; index < count; ++index)
+      if (uint32 const button = (*values)[2 * index + 1].value; button < MAX_ACTION_BUTTONS)
+        if (uint32 const spell = (*values)[2 * index + 2].value)
+          bar.emplace_back(uint8(button), spell);
+    return bar;
+  }
+
+  static void StoreBar(Player* player, std::vector<std::pair<uint8, uint32>> const& bar)
+  {
+    std::size_t previous = 0;
+    if (PlayerSettingVector const* values = player->FindPlayerSettings(BAR_SETTING))
+      previous = values->size();
+
+    player->UpdatePlayerSetting(BAR_SETTING, 0, uint32(bar.size()));
+    for (std::size_t index = 0; index < bar.size(); ++index)
+    {
+      player->UpdatePlayerSetting(BAR_SETTING, uint32(2 * index + 1), bar[index].first);
+      player->UpdatePlayerSetting(BAR_SETTING, uint32(2 * index + 2), bar[index].second);
+    }
+    for (std::size_t index = 2 * bar.size() + 1; index < previous; ++index)
+      player->UpdatePlayerSetting(BAR_SETTING, uint32(index), 0);
+  }
+
+  /// Remembers the buttons that hold one of the spells about to be removed.
+  static void RememberBarButtons(Player* player, std::unordered_set<uint32> const& spells)
+  {
+    std::vector<std::pair<uint8, uint32>> bar = StoredBar(player);
+    for (uint8 button = 0; button < MAX_ACTION_BUTTONS; ++button)
+    {
+      ActionButton const* action = player->GetActionButton(button);
+      if (!action || action->GetType() != ACTION_BUTTON_SPELL || !spells.contains(action->GetAction()))
+        continue;
+
+      std::erase_if(bar, [button](auto const& pair) { return pair.first == button; });
+      bar.emplace_back(button, action->GetAction());
+    }
+    StoreBar(player, bar);
+  }
+
+  /// Puts remembered spells back on the buttons the client emptied, once the spells are known again.
+  static void RestoreBarButtons(Player* player)
+  {
+    std::vector<std::pair<uint8, uint32>> bar = StoredBar(player);
+    bool restored = false;
+    std::erase_if(bar, [&](auto const& pair) {
+      if (!player->HasSpell(pair.second))
+        return false;
+      if (!player->GetActionButton(pair.first))
+        restored |= player->addActionButton(pair.first, pair.second, ACTION_BUTTON_SPELL) != nullptr;
+      return true;
+    });
+    if (restored)
+      player->SendInitialActionButtons();
+    StoreBar(player, bar);
+  }
+
   /// Writes down the class tree and the tree of the specialization being left.
   void StoreBuilds(Player* player, uint32 specializationId)
   {
@@ -1985,6 +2053,15 @@ public:
 
     std::unordered_set<uint32> visitedSpellIds;
     uint32 removed = 0;
+    {
+      std::unordered_set<uint32> talentSpells;
+      for (AscensionCompatData::CoATalentEntry const& entry : AscensionCompatData::CoATalentEntries)
+        if (entry.ClassId == player->getClass())
+          for (uint32 spellId : entry.SpellIds)
+            if (spellId && player->HasSpell(spellId))
+              talentSpells.insert(spellId);
+      RememberBarButtons(player, talentSpells);
+    }
     for (AscensionCompatData::CoATalentEntry const &entry :
          AscensionCompatData::CoATalentEntries) {
       if (entry.ClassId != player->getClass())
@@ -2008,6 +2085,7 @@ public:
 
     uint32 const restored = RestoreBuilds(player, specializationId);
     uint32 granted = SynchronizeProgression(player);
+    RestoreBarButtons(player);
     ChatHandler(player->GetSession())
         .PSendSysMessage(
             "Activated specialization {}. Stored the build of specialization {}, removed {} old talent "
