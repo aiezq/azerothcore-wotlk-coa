@@ -116,7 +116,7 @@ struct ResourceGainRule
 // These active abilities advertise resource generation in their tooltips, but
 // their public Spell.dbc records contain no effect that performs it. Ranges are
 // rank chains verified against the local Ascension spell dump.
-inline constexpr std::array<ResourceGainRule, 183> ResourceGainRules =
+inline constexpr std::array<ResourceGainRule, 191> ResourceGainRules =
 {{
     // Native helpers already supply Twin Slice, Fel Fireball, and Seeking Flame.
     // Fel Torpedo and the current Bane variants generate through their class scripts.
@@ -487,7 +487,32 @@ inline constexpr std::array<ResourceGainRule, 183> ResourceGainRules =
     {22, 520175, 520175, 804455, 1, ResourceMutation::AuraStacks,
         ResourceGainEvent::EachSuccessfulDamagingHit, 92120},
     {22, 520702, 520707, 804455, 1, ResourceMutation::AuraStacks,
-        ResourceGainEvent::EachSuccessfulDamagingHit, 92120}
+        ResourceGainEvent::EachSuccessfulDamagingHit, 92120},
+
+    // Sanguine Bloodmage: the Thirst specialization passive (500107) promises
+    // "spells that cost health now grant Thirst", and each generator advertises
+    // "$?s500107[, and 1 stack of Thirst.]" (verified against Spell.dbc).
+    // Bloodmoon Blast (500125, 501607-501614, 572332), Blood Blast (500546),
+    // Puncturing Fangs (523728-523729) and Sanguine Rupture (572907, 800774,
+    // 802456-802461) therefore grant one Blood thirst (706613) stack on cast
+    // while the passive is present. Bloodborn (504297), Born in Blood (504552)
+    // and Beguiler (561026) only reference Thirst conditionally and grant none.
+    {20, 500125, 500125, 706613, 1, ResourceMutation::AuraStacks,
+        ResourceGainEvent::Cast, 500107},
+    {20, 501607, 501614, 706613, 1, ResourceMutation::AuraStacks,
+        ResourceGainEvent::Cast, 500107},
+    {20, 572332, 572332, 706613, 1, ResourceMutation::AuraStacks,
+        ResourceGainEvent::Cast, 500107},
+    {20, 500546, 500546, 706613, 1, ResourceMutation::AuraStacks,
+        ResourceGainEvent::Cast, 500107},
+    {20, 523728, 523729, 706613, 1, ResourceMutation::AuraStacks,
+        ResourceGainEvent::Cast, 500107},
+    {20, 572907, 572907, 706613, 1, ResourceMutation::AuraStacks,
+        ResourceGainEvent::Cast, 500107},
+    {20, 800774, 800774, 706613, 1, ResourceMutation::AuraStacks,
+        ResourceGainEvent::Cast, 500107},
+    {20, 802456, 802461, 706613, 1, ResourceMutation::AuraStacks,
+        ResourceGainEvent::Cast, 500107}
 }};
 
 struct NativePowerGainRule
