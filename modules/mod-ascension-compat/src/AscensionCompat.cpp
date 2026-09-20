@@ -264,6 +264,8 @@ constexpr uint32 SPELL_PYROMANCER_EMBER = 807533;
 constexpr uint32 SPELL_PRIMALIST_EARTHSHAPING = 680441;
 constexpr uint32 SPELL_STORMBRINGER_STATIC = 803102;
 constexpr uint32 SPELL_STORMBRINGER_CHARGED_CONDUIT = 803790;
+constexpr uint32 SPELL_BLOODMAGE_THIRST_PASSIVE = 92112;
+constexpr uint32 SPELL_BLOODMAGE_THIRST = 706613;
 constexpr uint32 SPELL_REAPER_REAPED_SOUL = 500363;
 constexpr uint32 SPELL_REAPER_SOUL_INFUSION = 803031;
 // Removes Reaped Souls, Soul Infusion and Soul Fragments; Soul Infusion's own proc trigger points to it.
@@ -2367,6 +2369,7 @@ public:
         }
 
         validateResourceSpell(SPELL_REAPER_GENERATE_SOUL);
+        validateResourceSpell(SPELL_BLOODMAGE_THIRST_PASSIVE);
 
         for (AscensionCompatData::ResourceGainRule const& rule :
              AscensionCompatData::ResourceGainRules)
@@ -2600,6 +2603,15 @@ public:
 
         SpellInfo const* spellInfo = spell->GetSpellInfo();
         uint32 spellId = spellInfo->Id;
+
+        // CharacterAdvancement entry 4025 grants 92112, not the old 500107 passive.
+        // Its contract covers every health-cost spell, including utility spells and
+        // talent ranks without the conditional Thirst sentence in their tooltip.
+        // This hook runs after a successful cast; triggered children are excluded above.
+        if (player->getClass() == CLASS_SON_OF_ARUGAL && spellInfo->SpellFamilyName == 26 &&
+            spellInfo->PowerType == POWER_HEALTH && spell->GetPowerCost() > 0 &&
+            player->HasAura(SPELL_BLOODMAGE_THIRST_PASSIVE))
+            ModifyAuraStacks(player, SPELL_BLOODMAGE_THIRST, 1);
 
         for (AscensionCompatData::ResourceGainRule const& rule :
              AscensionCompatData::ResourceGainRules)

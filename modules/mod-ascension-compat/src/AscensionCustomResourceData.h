@@ -88,7 +88,7 @@ struct ResourceThresholdRule
 
 // Ascension uses hidden auras to make fixed-cost abilities castable. The
 // private server normally keeps them synchronized with the visible resource.
-inline constexpr std::array<ResourceThresholdRule, 8> ResourceThresholdRules =
+inline constexpr std::array<ResourceThresholdRule, 7> ResourceThresholdRules =
 {{
     {14, 800058, 2, 803468},
     {16, 803102, 10, 706668},
@@ -96,11 +96,7 @@ inline constexpr std::array<ResourceThresholdRule, 8> ResourceThresholdRules =
     {16, 803102, 25, 681126},
     {16, 803102, 40, 573249},
     {16, 803102, 50, 707050},
-    {25, 800431, 2, 520343},
-    // Sanguine Bloodmage: reaching 10 Blood thirst stacks makes the mage
-    // Insatiable (706621), which sheds damage via 706663 every 3 seconds
-    // until Thirst ends (Spell.dbc).
-    {20, 706613, 10, 706621}
+    {25, 800431, 2, 520343}
 }};
 
 struct ResourceGainRule
@@ -120,7 +116,7 @@ struct ResourceGainRule
 // These active abilities advertise resource generation in their tooltips, but
 // their public Spell.dbc records contain no effect that performs it. Ranges are
 // rank chains verified against the local Ascension spell dump.
-inline constexpr std::array<ResourceGainRule, 191> ResourceGainRules =
+inline constexpr std::array<ResourceGainRule, 183> ResourceGainRules =
 {{
     // Native helpers already supply Twin Slice, Fel Fireball, and Seeking Flame.
     // Fel Torpedo and the current Bane variants generate through their class scripts.
@@ -491,35 +487,7 @@ inline constexpr std::array<ResourceGainRule, 191> ResourceGainRules =
     {22, 520175, 520175, 804455, 1, ResourceMutation::AuraStacks,
         ResourceGainEvent::EachSuccessfulDamagingHit, 92120},
     {22, 520702, 520707, 804455, 1, ResourceMutation::AuraStacks,
-        ResourceGainEvent::EachSuccessfulDamagingHit, 92120},
-
-    // Sanguine Bloodmage: the Thirst specialization promises that "spells
-    // that cost health now grant Thirst", and each generator advertises
-    // "$?s500107[, and 1 stack of Thirst.]" (verified against Spell.dbc).
-    // The 500107 passive itself is never granted server-side; the Sanguine
-    // identity node (CharacterAdvancement entry 4025) teaches the Thirst meter
-    // 92112 instead, so the rules gate on that aura. Bloodmoon Blast (500125,
-    // 501607-501614, 572332), Blood Blast (500546), Puncturing Fangs
-    // (523728-523729) and Sanguine Rupture (572907, 800774, 802456-802461)
-    // therefore grant one Blood thirst (706613) stack on cast while 92112 is
-    // present. Bloodborn (504297), Born in Blood (504552) and Beguiler
-    // (561026) only reference Thirst conditionally and grant none.
-    {20, 500125, 500125, 706613, 1, ResourceMutation::AuraStacks,
-        ResourceGainEvent::Cast, 92112},
-    {20, 501607, 501614, 706613, 1, ResourceMutation::AuraStacks,
-        ResourceGainEvent::Cast, 92112},
-    {20, 572332, 572332, 706613, 1, ResourceMutation::AuraStacks,
-        ResourceGainEvent::Cast, 92112},
-    {20, 500546, 500546, 706613, 1, ResourceMutation::AuraStacks,
-        ResourceGainEvent::Cast, 92112},
-    {20, 523728, 523729, 706613, 1, ResourceMutation::AuraStacks,
-        ResourceGainEvent::Cast, 92112},
-    {20, 572907, 572907, 706613, 1, ResourceMutation::AuraStacks,
-        ResourceGainEvent::Cast, 92112},
-    {20, 800774, 800774, 706613, 1, ResourceMutation::AuraStacks,
-        ResourceGainEvent::Cast, 92112},
-    {20, 802456, 802461, 706613, 1, ResourceMutation::AuraStacks,
-        ResourceGainEvent::Cast, 92112}
+        ResourceGainEvent::EachSuccessfulDamagingHit, 92120}
 }};
 
 struct NativePowerGainRule
