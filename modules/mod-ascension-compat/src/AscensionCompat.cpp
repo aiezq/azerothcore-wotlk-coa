@@ -2115,6 +2115,14 @@ public:
     if (Pet* pet = player->GetPet())
       player->RemovePet(pet, PET_SAVE_NOT_IN_SLOT);
 
+    // Stacking resource auras belong to the build being left: Pooled Vitality
+    // (680687), Blood thirst (706613) and Insatiable (706621/706663) would
+    // otherwise survive the talent-spell wipe below and leak into the new spec.
+    player->RemoveAurasDueToSpell(680687);
+    player->RemoveAurasDueToSpell(706613);
+    player->RemoveAurasDueToSpell(706621);
+    player->RemoveAurasDueToSpell(706663);
+
     std::unordered_set<uint32> visitedSpellIds;
     uint32 removed = 0;
     {

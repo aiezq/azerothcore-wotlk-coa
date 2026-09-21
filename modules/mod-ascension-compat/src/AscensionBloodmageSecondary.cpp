@@ -1,6 +1,7 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
 #include "AscensionPooledVitality.h"
 #include "ObjectAccessor.h"
+#include "Pet.h"
 #include "Player.h"
 #include "Random.h"
 #include "ScriptMgr.h"
@@ -54,7 +55,38 @@ enum BloodmageSecondarySpells : uint32
     SPELL_CURSED_FORM_REQUIREMENT = 525031,
     SPELL_CURSED_FORM_REQUIREMENT_2 = 524861,
     SPELL_VAMPIRIC_FANG_SHARE = 572373, // the aura-354 record that names the leeched share
-    SPELL_VAMPIRIC_FANG_HEAL = 572374   // its TriggerSpell, a plain SPELL_EFFECT_HEAL on the caster
+    SPELL_VAMPIRIC_FANG_HEAL = 572374,  // its TriggerSpell, a plain SPELL_EFFECT_HEAL on the caster
+    SPELL_BLOODFANG_BITE = 800156, // Rank 1; higher ranks share the behavior below
+    SPELL_CALL_OF_DARKWING = 801958, // Shadow Bats summon (native SUMMON effect)
+    SPELL_BITE_WOUND = 706654,
+    SPELL_BITE_WOUND_LEECH = 532612, // Bite Wound: EFFECT_0 carries the leech percent of auto-attack damage
+    SPELL_APOTHEOSIS = 804195,
+    SPELL_BRUTALIZER = 704657,
+    SPELL_FINGER_OF_DEATH = 806178,
+    SPELL_SHATTERED = 804447,
+    SPELL_TALDARAM_TORMENT = 800772, // Rank 1; higher ranks share the refresh below
+    SPELL_RECKLESS_ABANDON = 804700,
+    SPELL_BLOOD_DEBT = 804206,
+    SPELL_VAMPIRIC_HUNGER = 802316,
+    SPELL_VAMPIRIC_HUNGER_ENRAGE = 504270,
+    SPELL_BLOOD_VEIL = 504263, // Rank 1; 572279 shares the expiry below
+    SPELL_BLOOD_VEIL_2 = 572279,
+    SPELL_AORTIC_AEGIS = 704637,
+    SPELL_AORTIC_AEGIS_HEAL = 681029,
+    SPELL_DARKFALLEN_LAMENT = 680828,
+    SPELL_ATHERANN_ANGUISH = 680680,
+    SPELL_ATHERANN_ANGUISH_BURST = 680681,
+    SPELL_INFUSE = 681403,
+    SPELL_INFUSE_BURST = 681404,
+    SPELL_TORTURE = 504071,
+    SPELL_TORTURE_EXTEND = 561152, // EFFECT_0 carries the Transgression extension in milliseconds
+    SPELL_TRANSGRESSION = 801076,
+    SPELL_PACKLEADER = 504290,
+    SPELL_PACKLEADER_BUFF = 504289,
+    SPELL_BLOODSHARDS = 300588,
+    SPELL_BLOODSHARDS_BLEED = 681074,
+    SPELL_EASY_PREY = 532712,
+    SPELL_SCREECH_OF_DARKWING = 300260 // 1s ICD between echoed Darkwings
 };
 
 // Every Vampiric Fang rank: the base strike plus its learned ranks.
@@ -64,6 +96,119 @@ bool IsVampiricFang(uint32 id)
 {
     return std::find(std::begin(VampiricFangRanks), std::end(VampiricFangRanks), id) !=
         std::end(VampiricFangRanks);
+}
+
+// Every Bloodfang Bite rank: the base bite plus its learned ranks.
+constexpr uint32 BloodfangBiteRanks[] =
+    {800156, 501695, 501696, 501697, 503613, 503614, 503615, 572549, 572550, 572551};
+
+// Every Ravenous Strike rank: the base strike plus its learned ranks.
+constexpr uint32 RavenousStrikeRanks[] =
+    {500123, 501671, 501672, 501673, 501674, 501675, 501676, 501677, 501678, 501679};
+
+// Gore Barrage records that can land a damaging hit.
+constexpr uint32 GoreBarrageRanks[] =
+    {503580, 680279, 807345, 807777, 354833, 354861, 354862, 354863};
+
+// Every Sanguine Rupture rank.
+constexpr uint32 SanguineRuptureRanks[] =
+    {572907, 800774, 802456, 802457, 802458, 802459, 802460, 802461};
+
+// Every Bloodmoon Blast rank.
+constexpr uint32 BloodmoonBlastRanks[] =
+    {500125, 501607, 501608, 501609, 501610, 501611, 501612, 501613, 501614, 572332};
+
+// Every Claw Sweep rank.
+constexpr uint32 ClawSweepRanks[] =
+    {500169, 500436, 500437, 500438, 500439, 500440, 500441, 500444};
+
+// Every Taldaram's Torment rank, for duration refreshes.
+constexpr uint32 TaldaramTormentRanks[] =
+    {800772, 802568, 802569, 802570, 802571, 802572, 802580};
+
+// Every Bloodmage Howl: the four Howl talents share Packleader.
+constexpr uint32 HowlSpells[] = {800782, 806177, 804207, 804811};
+
+bool IsBloodfangBite(uint32 id)
+{
+    return std::find(std::begin(BloodfangBiteRanks), std::end(BloodfangBiteRanks), id) !=
+        std::end(BloodfangBiteRanks);
+}
+
+bool IsRavenousStrike(uint32 id)
+{
+    return std::find(std::begin(RavenousStrikeRanks), std::end(RavenousStrikeRanks), id) !=
+        std::end(RavenousStrikeRanks);
+}
+
+bool IsGoreBarrage(uint32 id)
+{
+    return std::find(std::begin(GoreBarrageRanks), std::end(GoreBarrageRanks), id) !=
+        std::end(GoreBarrageRanks);
+}
+
+bool IsSanguineRupture(uint32 id)
+{
+    return std::find(std::begin(SanguineRuptureRanks), std::end(SanguineRuptureRanks), id) !=
+        std::end(SanguineRuptureRanks);
+}
+
+bool IsBloodmoonBlast(uint32 id)
+{
+    return std::find(std::begin(BloodmoonBlastRanks), std::end(BloodmoonBlastRanks), id) !=
+        std::end(BloodmoonBlastRanks);
+}
+
+bool IsClawSweep(uint32 id)
+{
+    return std::find(std::begin(ClawSweepRanks), std::end(ClawSweepRanks), id) !=
+        std::end(ClawSweepRanks);
+}
+
+bool IsHowl(uint32 id)
+{
+    return std::find(std::begin(HowlSpells), std::end(HowlSpells), id) !=
+        std::end(HowlSpells);
+}
+
+// Talents gate on spellbook ownership, not on aura presence: a learned
+// passive without aura effects still satisfies the tooltip's $?s condition.
+bool HasTalent(Player const* player, uint32 id)
+{
+    return player && (player->HasAura(id) || player->HasSpell(id));
+}
+
+// Screech of the Darkwing echoes triggered Darkwings at most once a second.
+std::unordered_map<uint32, uint32> DarkwingEchoTimers;
+
+void TriggerDarkwing(Player* player, Unit* target)
+{
+    if (!player || !target)
+        return;
+    player->CastSpell(target, SPELL_CALL_OF_DARKWING, true);
+    if (!HasTalent(player, SPELL_SCREECH_OF_DARKWING))
+        return;
+    uint32& last = DarkwingEchoTimers[player->GetGUID().GetCounter()];
+    uint32 now = getMSTime();
+    if (now - last < 1000)
+        return;
+    last = now;
+    player->CastSpell(target, SPELL_CALL_OF_DARKWING, true);
+}
+
+void BuffSummons(Player* player, uint32 buff)
+{
+    if (!player)
+        return;
+    // Pet, guardian and channeled minion cover the Bloodmage's summons
+    // (Shadow Bats, Animated Blood amalgam) without enumerating slots.
+    if (Pet* pet = player->GetPet())
+        player->CastSpell(pet, buff, true);
+    if (Unit* guardian = player->GetGuardianPet())
+        player->CastSpell(guardian, buff, true);
+    if (ObjectGuid minion = player->GetMinionGUID())
+        if (Unit* unit = ObjectAccessor::GetUnit(*player, minion))
+            player->CastSpell(unit, buff, true);
 }
 
 // Cursed Form abilities are exactly the records the kit gates on one of its two "Cursed Form" markers.
@@ -125,6 +270,37 @@ public:
         if (player->HasAura(SPELL_DARK_ESSENCE) && (IsCursedFormAbility(info) ||
             AscensionBloodmage::GetEmpowerment(info->Id) == AscensionBloodmage::Bloodbolt))
             player->CastSpell(player, SPELL_DARK_ESSENCE_HEAL, true);
+        // Packleader enrages the player's summons on any Howl cast.
+        if (IsHowl(info->Id))
+        {
+            if (HasTalent(player, SPELL_PACKLEADER))
+                BuffSummons(player, SPELL_PACKLEADER_BUFF);
+            return;
+        }
+        if (IsBloodfangBite(info->Id))
+        {
+            // Blood Debt trades its own duration for a free bite: the Rage tax
+            // is taken here and the debt is settled at once.
+            if (player->HasAura(SPELL_BLOOD_DEBT))
+            {
+                int32 tax = 0;
+                if (SpellInfo const* debt = sSpellMgr->GetSpellInfo(SPELL_BLOOD_DEBT))
+                    tax = debt->Effects[EFFECT_2].BasePoints;
+                if (tax > 0)
+                    player->ModifyPower(POWER_RAGE, -tax);
+                player->RemoveAurasDueToSpell(SPELL_BLOOD_DEBT);
+            }
+            // Fang Over Fang rides the native proc row (rev_20260920_57):
+            // its reset effect needs no script.
+            return;
+        }
+        // Blood Debt wipes Bloodfang Bite off cooldown.
+        if (info->Id == SPELL_BLOOD_DEBT)
+        {
+            for (uint32 bite : BloodfangBiteRanks)
+                player->RemoveSpellCooldown(bite, true);
+            return;
+        }
         if (!player->HasAura(SPELL_NIGHT_HUNTER))
             return;
         if (RankOf(info->Id, SPELL_VEINBURST))
@@ -153,6 +329,19 @@ public:
             if (instinct->IsAffectedOnSpell(spell->GetSpellInfo()))
                 chance += std::min(float(player->GetPower(POWER_RAGE)) * instinct->GetAmount() / 10000.0f,
                     float(instinct->GetMiscValueB()));
+        // Brutalizer promises extra critical strike chance for Gore Barrage
+        // and Bloodfang Bite. Vital Shred names no server-side record, so only
+        // the two real kits are covered.
+        if (target && HasTalent(player, SPELL_BRUTALIZER) &&
+            (IsGoreBarrage(spell->GetSpellInfo()->Id) || IsBloodfangBite(spell->GetSpellInfo()->Id)))
+        {
+            int32 bonus = 0;
+            if (SpellInfo const* talent = sSpellMgr->GetSpellInfo(SPELL_BRUTALIZER))
+                bonus = talent->Effects[EFFECT_0].BasePoints +
+                    (talent->Effects[EFFECT_0].DieSides ? 1 : 0);
+            if (bonus > 0)
+                chance += float(bonus);
+        }
     }
 
     void OnSpellCalculatedTarget(Spell* spell, Unit* target, TargetInfo& hit) override
@@ -199,6 +388,25 @@ public:
                     uint32(std::min(double(hit.damageBeforeTakenMods) * mult, double(maximum)));
             }
         }
+        // Reckless Abandon promises bonus Ravenous Strike damage. The Grimclaw
+        // chance it also names cannot resolve: Grimclaw (800158) ships with
+        // empty effects, so there is nothing to proc until the data is fixed.
+        if (IsRavenousStrike(id) && player->HasAura(SPELL_RECKLESS_ABANDON))
+        {
+            int32 pct = 0;
+            if (SpellInfo const* enrage = sSpellMgr->GetSpellInfo(SPELL_RECKLESS_ABANDON))
+                pct = enrage->Effects[EFFECT_0].BasePoints +
+                    (enrage->Effects[EFFECT_0].DieSides ? 1 : 0);
+            if (pct > 0)
+            {
+                uint32 maximum =
+                    uint32(std::nextafter(float(std::numeric_limits<int32>::max()), 0.0f));
+                double mult = 1.0 + double(pct) / 100.0;
+                hit.damage = uint32(std::min(double(hit.damage) * mult, double(maximum)));
+                hit.damageBeforeTakenMods =
+                    uint32(std::min(double(hit.damageBeforeTakenMods) * mult, double(maximum)));
+            }
+        }
     }
 
     void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
@@ -230,17 +438,66 @@ public:
             spell->SetScriptValue(SPELL_ROTCLAW_ENERGIZE, 1);
             player->CastSpell(player, SPELL_ROTCLAW_ENERGIZE, true);
         }
+        // Bloodfang Bite promises a Bite Wound but carries no effect that
+        // applies one. The wound itself (706654) drives the auto-attack leech.
+        if (IsBloodfangBite(id))
+            player->CastSpell(target, SPELL_BITE_WOUND, true);
+        // Apotheosis turns all Shadow damage dealt into healing. The school is
+        // read off the spell so no per-ability list is needed.
+        if (damage && (spell->GetSpellInfo()->SchoolMask & SPELL_SCHOOL_MASK_SHADOW) &&
+            player->HasAura(SPELL_APOTHEOSIS))
+            Unit::DealHeal(player, player, damage);
         // Vampiric Fang expends Thirst: steal health equal to the damage dealt,
         // then clear Thirst and Insatiable. Runs once per cast on the first
         // successful hostile hit.
         if (IsVampiricFang(id) && !spell->GetScriptValue(SPELL_VAMPIRIC_FANG))
         {
             spell->SetScriptValue(SPELL_VAMPIRIC_FANG, 1);
+            uint32 thirst = 0;
+            if (Aura const* pool = player->GetAura(SPELL_BLOOD_THIRST))
+                thirst = pool->GetStackAmount();
             if (damage)
                 Unit::DealHeal(player, player, damage);
             player->RemoveAurasDueToSpell(SPELL_BLOOD_THIRST);
             player->RemoveAurasDueToSpell(SPELL_INSATIABLE);
             player->RemoveAurasDueToSpell(SPELL_INSATIABLE_STACK);
+            // Torture extends Transgression when the fang drank deep.
+            if (thirst >= 9 && HasTalent(player, SPELL_TORTURE))
+            {
+                int32 extension = 0;
+                if (SpellInfo const* torture = sSpellMgr->GetSpellInfo(SPELL_TORTURE_EXTEND))
+                    extension = torture->Effects[EFFECT_0].BasePoints / 1000;
+                if (Aura* form = player->GetAura(SPELL_TRANSGRESSION))
+                    form->SetDuration(form->GetDuration() + extension * 1000);
+            }
+        }
+        // Bloodshards flings a bleed on Claw Sweep and Sanguine Rupture hits.
+        if (HasTalent(player, SPELL_BLOODSHARDS) &&
+            (IsClawSweep(id) || IsSanguineRupture(id)) && !spell->GetScriptValue(SPELL_BLOODSHARDS))
+        {
+            spell->SetScriptValue(SPELL_BLOODSHARDS, 1);
+            player->CastSpell(target, SPELL_BLOODSHARDS_BLEED, true);
+        }
+        // Easy Prey lets Bloodmoon Blast and Bloodfang Bite call the pack.
+        if (HasTalent(player, SPELL_EASY_PREY) && !spell->GetScriptValue(SPELL_EASY_PREY) &&
+            (IsBloodmoonBlast(id) || IsBloodfangBite(id)))
+        {
+            uint32 chance = 0;
+            if (SpellInfo const* prey = sSpellMgr->GetSpellInfo(SPELL_EASY_PREY))
+                chance = prey->ProcChance;
+            spell->SetScriptValue(SPELL_EASY_PREY, 1);
+            if (chance && roll_chance_i(chance))
+                TriggerDarkwing(player, target);
+        }
+        // Finger of Death shreds armor through Shattered and refreshes
+        // Taldaram's Torment. Its middle custom effect (178) has no engine
+        // meaning, so only the two documented behaviors are scripted.
+        if (id == SPELL_FINGER_OF_DEATH)
+        {
+            player->CastSpell(target, SPELL_SHATTERED, true);
+            for (uint32 torment : TaldaramTormentRanks)
+                if (Aura* aura = target->GetAura(torment, player->GetGUID()))
+                    aura->RefreshDuration();
         }
         if (!damage)
             return;
@@ -317,6 +574,193 @@ public:
                     if (player->HasAura(SPELL_BLACK_HEART))
                         player->ModifyPower(POWER_RAGE, int32(player->GetMaxPower(POWER_RAGE)) / 5);
                 }
+    }
+};
+
+class bloodmage_bite_wound_leech : public UnitScript
+{
+public:
+    bloodmage_bite_wound_leech() : UnitScript("bloodmage_bite_wound_leech", true,
+        {UNITHOOK_MODIFY_MELEE_DAMAGE}) { }
+
+    void ModifyMeleeDamage(Unit* target, Unit* attacker, uint32& damage) override
+    {
+        Player* player = attacker ? attacker->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_SON_OF_ARUGAL || !player->IsAlive() ||
+            !target || target == player || !damage)
+            return;
+        Aura const* wound = target->GetAura(SPELL_BITE_WOUND, player->GetGUID());
+        if (!wound)
+            return;
+        // Bite Wound restores a percent of auto-attack damage dealt. The rate
+        // lives on Bite Wound (532612) EFFECT_0; fixed values read straight
+        // off BasePoints, rolled ones add the engine's +1.
+        int32 percent = 0;
+        if (SpellInfo const* leech = sSpellMgr->GetSpellInfo(SPELL_BITE_WOUND_LEECH))
+            percent = leech->Effects[EFFECT_0].BasePoints +
+                (leech->Effects[EFFECT_0].DieSides ? 1 : 0);
+        if (percent <= 0)
+            return;
+        uint32 maximum =
+            uint32(std::nextafter(float(std::numeric_limits<int32>::max()), 0.0f));
+        uint32 heal = uint32(std::min(uint64(damage) * uint64(percent) / 100, uint64(maximum)));
+        if (heal)
+            Unit::DealHeal(player, player, heal);
+    }
+};
+
+class bloodmage_veil_lament_expiry : public AuraScript
+{
+    PrepareAuraScript(bloodmage_veil_lament_expiry);
+
+    void Expired(AuraEffect const* /*effect*/, AuraEffectHandleModes /*mode*/)
+    {
+        Unit* target = GetTarget();
+        Unit* caster = GetCaster();
+        Player* player = caster ? caster->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_SON_OF_ARUGAL || !target)
+            return;
+        if (GetTargetApplication()->GetRemoveMode() != AURA_REMOVE_BY_EXPIRE)
+            return;
+        uint32 id = GetSpellInfo()->Id;
+        // Vampiric Hunger enrages the Veil target when the veil lapses.
+        if ((id == SPELL_BLOOD_VEIL || id == SPELL_BLOOD_VEIL_2) &&
+            HasTalent(player, SPELL_VAMPIRIC_HUNGER))
+            player->CastSpell(target, SPELL_VAMPIRIC_HUNGER_ENRAGE, true);
+        // Aortic Aegis pays out its maximum-health heal when Darkfallen
+        // Lament runs its course. The heal record (681029) does the scaling.
+        else if (id == SPELL_DARKFALLEN_LAMENT && HasTalent(player, SPELL_AORTIC_AEGIS))
+            player->CastSpell(player, SPELL_AORTIC_AEGIS_HEAL, true);
+    }
+
+    void Register() override
+    {
+        AfterEffectRemove += AuraEffectRemoveFn(bloodmage_veil_lament_expiry::Expired,
+            EFFECT_0, SPELL_AURA_ANY, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+// Accumulated plague damage, keyed by (caster counter << 32) | target counter.
+// Atherann's Anguish banks 30% of the owner's damage to marked enemies;
+// Infuse banks everything its mark takes (party, raid and minions included,
+// which the accumulation below does not filter beyond the mark itself).
+std::unordered_map<uint64, uint64> PlaguePools;
+
+uint64 PlagueKey(uint32 caster, uint32 target)
+{
+    return (uint64(caster) << 32) | target;
+}
+
+void AccumulatePlague(Player* player, Unit* victim, uint32 damage, float rate)
+{
+    if (!player || !victim || !damage || rate <= 0.0f)
+        return;
+    uint64& pool = PlaguePools[PlagueKey(player->GetGUID().GetCounter(),
+        victim->GetGUID().GetCounter())];
+    pool = std::min(pool + uint64(double(damage) * double(rate)),
+        uint64(std::numeric_limits<int32>::max()));
+}
+
+bool ExplodePlague(Player* player, Unit* target, uint32 burst)
+{
+    auto it = PlaguePools.find(PlagueKey(player->GetGUID().GetCounter(),
+        target->GetGUID().GetCounter()));
+    if (it == PlaguePools.end())
+        return false;
+    uint32 amount = uint32(std::min(it->second, uint64(std::numeric_limits<int32>::max())));
+    PlaguePools.erase(it);
+    if (!amount || !target->IsAlive() || !player->IsAlive())
+        return true;
+    // The burst records carry the damage shape; only the pooled amount is custom.
+    player->CastCustomSpell(burst, SPELLVALUE_BASE_POINT0, int32(amount), target, TRIGGERED_FULL_MASK);
+    return true;
+}
+
+class bloodmage_plague_accumulator : public UnitScript
+{
+public:
+    bloodmage_plague_accumulator() : UnitScript("bloodmage_plague_accumulator", true,
+        {UNITHOOK_ON_DAMAGE, UNITHOOK_ON_PERIODIC_DAMAGE_RESULT}) { }
+
+    void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
+    {
+        Accumulate(attacker, victim, damage);
+    }
+
+    void OnPeriodicDamageResult(Unit* target, Unit* attacker, uint32 damage,
+        SpellInfo const*) override
+    {
+        Accumulate(attacker, target, damage);
+    }
+
+private:
+    static void Accumulate(Unit* attacker, Unit* victim, uint32 damage)
+    {
+        Player* player = attacker ? attacker->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_SON_OF_ARUGAL || !victim || !damage)
+            return;
+        // Atherann's Anguish banks 30% of the owner's own damage; Infuse banks
+        // every point the marked target takes.
+        if (victim->HasAura(SPELL_ATHERANN_ANGUISH))
+            AccumulatePlague(player, victim, damage, 0.30f);
+        if (victim->HasAura(SPELL_INFUSE))
+            AccumulatePlague(player, victim, damage, 1.0f);
+    }
+};
+
+class bloodmage_plague_burst : public AuraScript
+{
+    PrepareAuraScript(bloodmage_plague_burst);
+
+    void Expired(AuraEffect const* /*effect*/, AuraEffectHandleModes /*mode*/)
+    {
+        Unit* target = GetTarget();
+        Unit* caster = GetCaster();
+        Player* player = caster ? caster->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_SON_OF_ARUGAL || !target)
+            return;
+        // A dispelled mark pays nothing out, but its pool must not survive
+        // into the next mark on the same victim.
+        PlaguePools.erase(PlagueKey(player->GetGUID().GetCounter(),
+            target->GetGUID().GetCounter()));
+        if (GetTargetApplication()->GetRemoveMode() != AURA_REMOVE_BY_EXPIRE)
+            return;
+        uint32 id = GetSpellInfo()->Id;
+        if (id == SPELL_ATHERANN_ANGUISH)
+            ExplodePlague(player, target, SPELL_ATHERANN_ANGUISH_BURST);
+        else if (id == SPELL_INFUSE)
+            ExplodePlague(player, target, SPELL_INFUSE_BURST);
+    }
+
+    void Register() override
+    {
+        AfterEffectRemove += AuraEffectRemoveFn(bloodmage_plague_burst::Expired,
+            EFFECT_0, SPELL_AURA_ANY, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+class bloodmage_thirst_expiry : public AuraScript
+{
+    PrepareAuraScript(bloodmage_thirst_expiry);
+
+    void Expired(AuraEffect const* /*effect*/, AuraEffectHandleModes /*mode*/)
+    {
+        // Thirst feeds Insatiable through the threshold sync, but that sync
+        // only runs on casts: when the stacks lapse on their own, the cap
+        // punishment has to leave with them.
+        if (GetTargetApplication()->GetRemoveMode() != AURA_REMOVE_BY_EXPIRE)
+            return;
+        if (Unit* target = GetTarget())
+        {
+            target->RemoveAurasDueToSpell(SPELL_INSATIABLE);
+            target->RemoveAurasDueToSpell(SPELL_INSATIABLE_STACK);
+        }
+    }
+
+    void Register() override
+    {
+        AfterEffectRemove += AuraEffectRemoveFn(bloodmage_thirst_expiry::Expired,
+            EFFECT_0, SPELL_AURA_ANY, AURA_EFFECT_HANDLE_REAL);
     }
 };
 
@@ -697,6 +1141,8 @@ void AddSC_AscensionBloodmageSecondary()
 {
     new bloodmage_secondary_casts();
     new bloodmage_kiss_periodic();
+    new bloodmage_bite_wound_leech();
+    new bloodmage_plague_accumulator();
     new bloodmage_secondary_contracts();
     RegisterSpellScript(spell_ascension_blood_feast_corpses);
     RegisterSpellScript(spell_ascension_blood_feast_drain);
@@ -707,4 +1153,7 @@ void AddSC_AscensionBloodmageSecondary()
     RegisterSpellScript(spell_ascension_bloodmage_hemal_excision);
     RegisterSpellScript(aura_ascension_bloodmage_hemal_excision);
     RegisterSpellScript(spell_ascension_bloodmage_excision);
+    RegisterSpellScript(bloodmage_veil_lament_expiry);
+    RegisterSpellScript(bloodmage_plague_burst);
+    RegisterSpellScript(bloodmage_thirst_expiry);
 }
