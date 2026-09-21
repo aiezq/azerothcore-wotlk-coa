@@ -14,7 +14,6 @@ namespace
 {
 enum FleshHook : uint32
 {
-    SPELL_WARPATH_PROTECTION = 805792,
     SPELL_FLESH_HOOK_PULL = 800605,
     SPELL_RANGE_THIRTY_YARDS = 4
 };

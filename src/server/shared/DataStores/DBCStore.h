@@ -72,6 +72,27 @@ public:
     [[nodiscard]] T const* LookupEntry(uint32 id) const { return (id >= _indexTableSize) ? nullptr : _indexTable.AsT[id]; }
     [[nodiscard]] T const* AssertEntry(uint32 id) const { return ASSERT_NOTNULL(LookupEntry(id)); }
 
+    void EnsureCapacity(uint32 size)
+    {
+        if (size <= _indexTableSize)
+            return;
+
+        // Resize
+        typedef char* ptr;
+        ptr* newArr = new ptr[size];
+        memset(newArr, 0, size * sizeof(ptr));
+        memcpy(newArr, _indexTable.AsChar, _indexTableSize * sizeof(ptr));
+        delete[] reinterpret_cast<char*>(_indexTable.AsT);
+        _indexTable.AsChar = newArr;
+        _indexTableSize = size;
+    }
+
+    void ReplaceEntry(uint32 id, T* t)
+    {
+        EnsureCapacity(id + 1);
+        _indexTable.AsT[id] = t;
+    }
+
     void SetEntry(uint32 id, T* t)
     {
         if (id >= _indexTableSize)
