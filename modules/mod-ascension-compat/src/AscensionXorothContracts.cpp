@@ -14,6 +14,7 @@ namespace
 {
 enum FleshHook : uint32
 {
+    SPELL_WARPATH_PROTECTION = 805792,
     SPELL_FLESH_HOOK_PULL = 800605,
     SPELL_RANGE_THIRTY_YARDS = 4
 };
@@ -353,7 +354,7 @@ class xoroth_scaling : public UnitScript
         float factor = defense;
         if (pet && caster->GetEntry() == 50301 && player->HasAura(804879) &&
             !caster->HasAura(804879, player->GetGUID()))
-            factor *= 2.5f;
+            factor *= 1.35f;
         if ((info->SchoolMask & SPELL_SCHOOL_MASK_FIRE) && target->GetHealthPct() > 80)
         {
             if (!pet)
